@@ -1,0 +1,4 @@
+telethon
+PyQT5
+pillow
+pytesseract

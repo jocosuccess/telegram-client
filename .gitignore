@@ -1,0 +1,7 @@
+.idea
+venv
+logs
+credentials
+csv
+media
+heroclass.session
