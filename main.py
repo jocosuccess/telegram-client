@@ -13,8 +13,8 @@ from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedErr
 import asyncio
 from datetime import date, datetime
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QDateTimeEdit, QTableWidgetItem, QVBoxLayout, QMessageBox, QWidget, QStackedWidget, QLineEdit, QInputDialog
-from PyQt5 import uic
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QDateTimeEdit, QTableWidgetItem, QVBoxLayout, QMessageBox, QWidget, QStackedWidget, QLineEdit, QInputDialog, QListWidget
+from PyQt5 import uic, QtGui
 import sys
 from utils.constants import *
 
@@ -26,17 +26,13 @@ from telethon.tl.types import (InputPeerEmpty)
 
 from utils.constants import *
 
-# Reading Configs
-config = configparser.ConfigParser()
-config.read(CRED_DIR + '/' + credential_file)
 # Tessearct Environment
-tess.pytesseract.tesseract_cmd = config['Telegram']['tesseract_env']
+tess.pytesseract.tesseract_cmd = tesseract_env
 # Setting configuration values
 api_id = 695236
 api_hash = '358d0a4e0cfff381f9cec02e438ef7f0'
 
 api_hash = str(api_hash)
-
 
 # Create the client and connect
 client = TelegramClient("telegram", api_id, api_hash)
@@ -49,20 +45,12 @@ class MainUI(QMainWindow):
     def __init__(self):
         super(MainUI, self).__init__()
         uic.loadUi(GUI_DIR + '/' + main_ui_file, self)
+        self.setFixedSize(330, 430)
+        self.setWindowIcon(QtGui.QIcon(GUI_DIR + '/icon.png'))
         self.stacked_widget = QStackedWidget()
         self.setCentralWidget(self.stacked_widget)
-        # self.check_sign()
-
-    # async def check_sign(self):
-    #     client.connect()
-    #     if client.is_user_authorized():
-    #     telegram_widget = TelegramWidget(self)
-    #     self.stacked_widget.addWidget(telegram_widget)
-        # else:
         login_widget = LoginWidget(self)
         self.stacked_widget.addWidget(login_widget)
-        # self.stacked_widget.setCurrentWidget(login_widget)
-        # self.show()
 
     def show_telegram(self):
         telegram_widget = TelegramWidget(self)
@@ -124,32 +112,24 @@ class TelegramWidget(QWidget):
         self.start_time_widget.setDateTime(datetime.now())
         self.end_time_widget = self.findChild(QDateTimeEdit, 'end_time_widget')
         self.end_time_widget.setDateTime(datetime.now())
-        self.chat_tbl_widget = self.findChild(QTableWidget, 'chat_tbl')
-        self.chat_tbl_widget.cellClicked.connect(self.table_chat_click)
+        self.chat_list_widget = self.findChild(QListWidget, 'chat_list_widget')
+        self.chat_list_widget.clicked.connect(self.list_view_clicked)
         self.extract_btn.clicked.connect(self.extractButtonClick)
         with client:
             client.loop.run_until_complete(self.get_chat_list())
-        self.add_chat_table(self.chat_list)
-        # self.show()
+        self.add_chat_list(self.chat_list)
 
-    def table_chat_click(self, row, column):
-        if column == 0:
-            self.chat_selected = True
-            chat_name = self.chat_tbl_widget.item(row, 0).text()
-            self.cat_number = self.category_id[chat_name]
-            self.entity_id = self.chat_id[chat_name]
-        else:
-            self.chat_selected = False
+    def list_view_clicked(self):
+        item = self.chat_list_widget.currentItem()
+        self.chat_selected = True
+        chat_name = str(item.text())
+        self.entity_id = self.chat_id[chat_name]
 
-    def add_chat_table(self, chat_list):
+    def add_chat_list(self, chat_list):
+        i = 0
         for chat in chat_list:
-            rowPosition = self.chat_tbl_widget.rowCount()
-            self.chat_tbl_widget.insertRow(rowPosition)
-            # numcols = self.chat_tbl_widget.columnCount()
-            numrows = self.chat_tbl_widget.rowCount()
-            self.chat_tbl_widget.setRowCount(numrows)
-            # self.chat_tbl_widget.setColumnCount(4)
-            self.chat_tbl_widget.setItem(numrows - 1, 0, QTableWidgetItem(chat['chat_name']))
+            self.chat_list_widget.insertItem(i, chat['chat_name'])
+            i = i + 1
 
     def extractButtonClick(self):
         start_time = self.start_time_widget.dateTime()
@@ -159,7 +139,7 @@ class TelegramWidget(QWidget):
             return
         else:
             with client:
-                client.loop.run_until_complete(self.get_messages(self.entity_id, self.cat_number, start_time, end_time))
+                client.loop.run_until_complete(self.get_messages(self.entity_id, start_time, end_time))
 
     def show_message_box(self, title, message):
         msg = QMessageBox()
@@ -183,19 +163,12 @@ class TelegramWidget(QWidget):
                 chat_id = str(chat.id)[1:]
                 cat_number = 2
             self.chat_id[chat.name] = chat.id
-            self.category_id[chat.name] = cat_number
             each_chat = dict(category=categories[cat_number], chat_name=chat.name, chat_id=chat_id)
             print(each_chat)
             self.chat_list.append(each_chat)
 
-    async def get_messages(self, entity_id, number, start_time, end_time):
+    async def get_messages(self, entity_id, start_time, end_time):
         entity = await client.get_entity(entity_id)
-        if number == 0:
-            chat_id = str(entity_id)
-        if number == 1:
-            chat_id = str(entity_id)[4:]
-        if number == 2:
-            chat_id = str(entity_id)[1:]
         offset_id = 0
         limit = 100
         all_messages = []
@@ -229,6 +202,11 @@ class TelegramWidget(QWidget):
                         if message.message is not None and not message.message == '':
                             text = message.message
                         elif message.media is not None:
+                            if 'MessageMediaDocument' not in str(type(message.media)) and 'MessageMediaPhoto' not in str(type(message.media)):
+                                continue
+                            if 'MessageMediaDocument' in str(type(message.media)):
+                                if message.media.document.mime_type not in ['image/jpeg', 'image/png', 'image/bmp', 'image/gif']:
+                                    continue
                             download_path = await client.download_media(
                                 message.media, MEDIA_DIR
                             )
@@ -239,18 +217,10 @@ class TelegramWidget(QWidget):
                         else:
                             continue
                         sn = sn + 1
-                        id = None
-                        direction = 'Reply'
-                        if number == 0:
-                            id = message.to_id.user_id
-                        elif number == 1:
-                            id = message.to_id.channel_id
-                        elif number == 2:
-                            id = message.to_id.chat_id
-                        else:
-                            pass
-                        if int(chat_id) == id:
+                        if message.out:
                             direction = 'Origin'
+                        else:
+                            direction = 'Reply'
                         row = [sn, direction, text, message.date.strftime("%Y-%m-%d %H:%M:%S")]
                         writer.writerow(row)
                 offset_id = messages[len(messages) - 1].id
@@ -261,5 +231,6 @@ class TelegramWidget(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainUI()
+    app.setStyleSheet('QMainWindow{background-image: url(./gui/background.jpg); background-repeat:no-repeat;}')
     window.show()
     app.exec_()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>340</width>
-    <height>433</height>
+    <width>330</width>
+    <height>430</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,7 +16,7 @@
   <widget class="QLineEdit" name="phone_txt">
    <property name="geometry">
     <rect>
-     <x>60</x>
+     <x>70</x>
      <y>50</y>
      <width>201</width>
      <height>31</height>
@@ -43,7 +43,7 @@
   <widget class="QPushButton" name="connection_btn">
    <property name="geometry">
     <rect>
-     <x>110</x>
+     <x>120</x>
      <y>110</y>
      <width>101</width>
      <height>31</height>

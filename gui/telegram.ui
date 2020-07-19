@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>329</width>
-    <height>429</height>
+    <width>330</width>
+    <height>430</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,7 +16,7 @@
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>80</x>
+     <x>90</x>
      <y>40</y>
      <width>31</width>
      <height>21</height>
@@ -29,7 +29,7 @@
   <widget class="QDateTimeEdit" name="start_time_widget">
    <property name="geometry">
     <rect>
-     <x>110</x>
+     <x>120</x>
      <y>40</y>
      <width>131</width>
      <height>22</height>
@@ -42,7 +42,7 @@
   <widget class="QLabel" name="label_2">
    <property name="geometry">
     <rect>
-     <x>80</x>
+     <x>90</x>
      <y>80</y>
      <width>21</width>
      <height>21</height>
@@ -55,7 +55,7 @@
   <widget class="QDateTimeEdit" name="end_time_widget">
    <property name="geometry">
     <rect>
-     <x>110</x>
+     <x>120</x>
      <y>80</y>
      <width>131</width>
      <height>22</height>
@@ -72,35 +72,39 @@
     <string>yyyy-MM-dd hh:mm AP</string>
    </property>
   </widget>
-  <widget class="QTableWidget" name="chat_tbl">
-   <property name="geometry">
-    <rect>
-     <x>50</x>
-     <y>120</y>
-     <width>231</width>
-     <height>231</height>
-    </rect>
-   </property>
-   <property name="columnCount">
-    <number>1</number>
-   </property>
-   <column>
-    <property name="text">
-     <string>Channels</string>
-    </property>
-   </column>
-  </widget>
   <widget class="QPushButton" name="extract_btn">
    <property name="geometry">
     <rect>
-     <x>210</x>
-     <y>380</y>
+     <x>200</x>
+     <y>370</y>
      <width>75</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text">
     <string>Extract</string>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="chat_list_widget">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>120</y>
+     <width>191</width>
+     <height>221</height>
+    </rect>
+   </property>
+   <property name="resizeMode">
+    <enum>QListView::Fixed</enum>
+   </property>
+   <property name="viewMode">
+    <enum>QListView::ListMode</enum>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
+   </property>
+   <property name="sortingEnabled">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>
