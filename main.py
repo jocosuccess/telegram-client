@@ -9,7 +9,7 @@ except ImportError:
     import Image
 import pytesseract as tess
 from telethon import TelegramClient
-from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedError
+from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedError, FloodWaitError
 import asyncio
 from datetime import date, datetime
 
@@ -72,13 +72,22 @@ class LoginWidget(QWidget):
             self.show_message_box("Warning", "Insert PhoneNumber")
             return
         client.connect()
-        if not client.is_user_authorized():
+        if client.is_user_authorized() and '+' + client.get_me().phone == phone_number:
+            # if '+' + client.get_me().phone == phone_number:
+            pass
+        else:
             try:
                 client.send_code_request(phone_number)
             except TypeError:
                 self.show_message_box("Warning", "Invalid Number")
+                return
+            except FloodWaitError:
+                self.show_message_box("Warning", "too much request")
+                return
             code, ok = QInputDialog.getText(self, "Authorize", "", QLineEdit.Normal)
             if ok:
+                if code is None or code == '':
+                    return
                 try:
                     me = client.sign_in(phone_number, code)
                 except SessionPasswordNeededError:
@@ -87,6 +96,10 @@ class LoginWidget(QWidget):
                 except PhoneNumberUnoccupiedError:
                     self.show_message_box("Warning", "Sign Up")
                     return
+            else:
+                return
+        me = client.get_me().phone
+        print(me)
         window.show_telegram()
 
     def show_message_box(self, title, message):
