@@ -13,8 +13,8 @@ from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedErr
 import asyncio
 from datetime import date, datetime
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QDateTimeEdit, QTableWidgetItem, QVBoxLayout, QMessageBox, QWidget, QStackedWidget, QLineEdit, QInputDialog, QListWidget
-from PyQt5 import uic, QtGui
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QDateTimeEdit, QTableWidgetItem, QVBoxLayout, QMessageBox, QWidget, QStackedWidget, QLineEdit, QInputDialog, QListWidget, QLabel
+from PyQt5 import uic, QtGui, QtCore
 import sys
 from utils.constants import *
 
@@ -45,8 +45,8 @@ class MainUI(QMainWindow):
     def __init__(self):
         super(MainUI, self).__init__()
         uic.loadUi(GUI_DIR + '/' + main_ui_file, self)
-        self.setFixedSize(330, 430)
-        self.setWindowIcon(QtGui.QIcon(GUI_DIR + '/icon.png'))
+        self.setFixedSize(530, 630)
+        self.setWindowIcon(QtGui.QIcon(GUI_DIR + '/TelegramFxBacktest.png'))
         self.stacked_widget = QStackedWidget()
         self.setCentralWidget(self.stacked_widget)
         login_widget = LoginWidget(self)
@@ -62,9 +62,12 @@ class LoginWidget(QWidget):
     def __init__(self, parent=None):
         super(LoginWidget, self).__init__(parent)
         uic.loadUi(GUI_DIR + '/' + login_ui_file, self)
+
         self.phone_txt = self.findChild(QLineEdit, 'phone_txt')
         self.connection_btn = self.findChild(QPushButton, 'connection_btn')
         self.connection_btn.clicked.connect(self.telegram_connect)
+        self.status_login_lbl = self.findChild(QLabel, 'status_login_lbl')
+        self.status_login_lbl.setText('Status:  Not Connected')
 
     def telegram_connect(self):
         phone_number = self.phone_txt.text()
@@ -128,6 +131,8 @@ class TelegramWidget(QWidget):
         self.chat_list_widget = self.findChild(QListWidget, 'chat_list_widget')
         self.chat_list_widget.clicked.connect(self.list_view_clicked)
         self.extract_btn.clicked.connect(self.extractButtonClick)
+        self.status_telegram_lbl = self.findChild(QLabel, 'status_telegram_lbl')
+        self.status_telegram_lbl.setText('Status:   Connected')
         with client:
             client.loop.run_until_complete(self.get_chat_list())
         self.add_chat_list(self.chat_list)
@@ -156,6 +161,8 @@ class TelegramWidget(QWidget):
 
     def show_message_box(self, title, message):
         msg = QMessageBox()
+        msg.setWindowIcon(QtGui.QIcon(GUI_DIR + '/TelegramFxBacktest.png'))
+        msg.setBaseSize(QtCore.QSize(300, 130))
         msg.setWindowTitle(title)
         msg.setText(message)
         retval = msg.exec_()
@@ -192,7 +199,7 @@ class TelegramWidget(QWidget):
         file_path = CSV_DIR + '/' + code + '.csv'
         with open(file_path, 'w', newline='', encoding="utf-8") as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow(["SN", "Direction", "Message", "Date"])
+            writer.writerow(["Message", "Date"])
             while True:
                 # print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
                 history = await client(GetHistoryRequest(
@@ -224,26 +231,24 @@ class TelegramWidget(QWidget):
                                 message.media, MEDIA_DIR
                             )
                             try:
-                                text = tess.image_to_string(Image.open(download_path))
+                                text = '///////Image//////\n' + tess.image_to_string(Image.open(download_path))
                             except Exception as e:
                                 self.show_message_box("Error", "No Tesseract")
                         else:
                             continue
                         sn = sn + 1
-                        if message.out:
-                            direction = 'Origin'
-                        else:
-                            direction = 'Reply'
-                        row = [sn, direction, text, message.date.strftime("%Y-%m-%d %H:%M:%S")]
+                        if not message.out:
+                            text = '/////Reply Message////\n' + text
+                        row = [text, message.date.strftime("%Y-%m-%d %H:%M:%S")]
                         writer.writerow(row)
                 offset_id = messages[len(messages) - 1].id
-        self.show_message_box("Success", code)
+        self.show_message_box("Success", "Code of the backtest : "+code)
         return
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainUI()
-    app.setStyleSheet('QMainWindow{background-image: url(./gui/background.jpg); background-repeat:no-repeat;}')
+    # app.setStyleSheet('QMainWindow{background-image: url(./gui/background.jpg); background-repeat:no-repeat;}')
     window.show()
     app.exec_()

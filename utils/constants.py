@@ -17,5 +17,5 @@ main_ui_file = "main.ui"
 telegram_ui_file = "telegram.ui"
 login_ui_file = "login.ui"
 
-tesseract_env = os.path.join(ROOT_DIR, 'tesseract') + '/tesseract.exe'
-
+# tesseract_env = os.path.join(ROOT_DIR, 'tesseract') + '/tesseract.exe'
+tesseract_env = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'

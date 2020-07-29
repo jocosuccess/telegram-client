@@ -9,12 +9,16 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>330</width>
-    <height>430</height>
+    <width>530</width>
+    <height>630</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>TelegramApp</string>
+   <string>TelegramFxBacktest</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>TelegramFxBacktest.png</normaloff>TelegramFxBacktest.png</iconset>
   </property>
   <property name="iconSize">
    <size>
@@ -28,7 +32,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>330</width>
+     <width>530</width>
      <height>21</height>
     </rect>
    </property>
