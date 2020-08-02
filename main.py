@@ -216,12 +216,18 @@ class TelegramWidget(QWidget):
                     break
                 messages = history.messages
                 for message in messages:
-                    print(message)
                     text = ''
                     if start_time <= message.date <= end_time:
+                        print(message)
                         if message.message is not None and not message.message == '':
                             text = message.message
-                        elif message.media is not None:
+                            if message.reply_to_msg_id is not None and message.reply_to_msg_id > 0:
+                                for message1 in messages:
+                                    if message1.id == message.reply_to_msg_id:
+                                        reply_msg = message1.message
+                                        break
+                                text = text + '\n/////Reply Message////\n' + reply_msg
+                        if message.media is not None:
                             if 'MessageMediaDocument' not in str(type(message.media)) and 'MessageMediaPhoto' not in str(type(message.media)):
                                 continue
                             if 'MessageMediaDocument' in str(type(message.media)):
@@ -231,14 +237,9 @@ class TelegramWidget(QWidget):
                                 message.media, MEDIA_DIR
                             )
                             try:
-                                text = '///////Image//////\n' + tess.image_to_string(Image.open(download_path))
+                                text = text + '\n///////Image//////\n' + tess.image_to_string(Image.open(download_path))
                             except Exception as e:
                                 self.show_message_box("Error", "No Tesseract")
-                        else:
-                            continue
-                        sn = sn + 1
-                        if not message.out:
-                            text = '/////Reply Message////\n' + text
                         row = [text, message.date.strftime("%Y-%m-%d %H:%M:%S")]
                         writer.writerow(row)
                 offset_id = messages[len(messages) - 1].id
