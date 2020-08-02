@@ -164,6 +164,7 @@ class TelegramWidget(QWidget):
         msg.setWindowIcon(QtGui.QIcon(GUI_DIR + '/TelegramFxBacktest.png'))
         msg.setBaseSize(QtCore.QSize(300, 130))
         msg.setWindowTitle(title)
+        msg.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         msg.setText(message)
         retval = msg.exec_()
 
