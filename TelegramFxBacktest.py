@@ -200,7 +200,7 @@ class TelegramWidget(QWidget):
         file_path = CSV_DIR + '/' + code + '.csv'
         with open(file_path, 'w', newline='', encoding="utf-8") as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow(["Message", "Date"])
+            writer.writerow(["Date", "Message"])
             while True:
                 # print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
                 history = await client(GetHistoryRequest(
@@ -241,7 +241,7 @@ class TelegramWidget(QWidget):
                                 text = text + '\n///////Image//////\n' + tess.image_to_string(Image.open(download_path))
                             except Exception as e:
                                 self.show_message_box("Error", "No Tesseract")
-                        row = [text, message.date.strftime("%Y-%m-%d %H:%M:%S")]
+                        row = [message.date.strftime("%Y-%m-%d %H:%M:%S"), text]
                         writer.writerow(row)
                 offset_id = messages[len(messages) - 1].id
         self.show_message_box("Success", "Code of the backtest : "+code)
