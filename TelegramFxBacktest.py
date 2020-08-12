@@ -3,26 +3,22 @@ import json
 import csv
 import string
 import random
+import sys
+from pyqtspinner.spinner import WaitingSpinner
 try:
     from PIL import Image
 except ImportError:
     import Image
 import pytesseract as tess
-from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedError, FloodWaitError
-import asyncio
 from datetime import date, datetime
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QDateTimeEdit, QTableWidgetItem, QVBoxLayout, QMessageBox, QWidget, QStackedWidget, QLineEdit, QInputDialog, QListWidget, QLabel
-from PyQt5 import uic, QtGui, QtCore
-import sys
-from utils.constants import *
+from PyQt5.QtWidgets import *
+from PyQt5 import uic, QtGui
+from PyQt5.QtCore import *
 
 from telethon.sync import TelegramClient
 from telethon.tl.functions.messages import (GetHistoryRequest)
-from telethon.tl.functions.messages import (GetDialogsRequest)
-from telethon.tl.types import (PeerChannel, PeerChat, PeerUser)
-from telethon.tl.types import (InputPeerEmpty)
 
 from utils.constants import *
 
@@ -112,6 +108,81 @@ class LoginWidget(QWidget):
         retval = msg.exec_()
 
 
+class RequestRunnable(QRunnable):
+    def __init__(self, entity_id, start_time, end_time, widget):
+        QRunnable.__init__(self)
+        self.entity_id = entity_id
+        self.start_time = start_time
+        self.end_time = end_time
+        self.w = widget
+        self.code = ''
+
+    def run(self):
+        with client:
+            client.loop.run_until_complete(self.get_messages())
+        QMetaObject.invokeMethod(self.w, "setData",
+                                 Qt.QueuedConnection,
+                                 Q_ARG(str, self.code))
+
+    async def get_messages(self):
+        entity = await client.get_entity(self.entity_id)
+        offset_id = 0
+        limit = 100
+        all_messages = []
+        total_messages = 0
+        total_count_limit = 0
+        sn = 0
+        self.code = ''.join(random.sample((string.ascii_uppercase+string.digits), 6))
+        file_path = CSV_DIR + '/' + self.code + '.csv'
+        with open(file_path, 'w', newline='', encoding="utf-8") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(["Date", "Message"])
+            while True:
+                # print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
+                history = await client(GetHistoryRequest(
+                    peer=entity,
+                    offset_id=offset_id,
+                    offset_date=None,
+                    add_offset=0,
+                    limit=limit,
+                    max_id=0,
+                    min_id=0,
+                    hash=0
+                ))
+                if not history.messages:
+                    break
+                messages = history.messages
+                for message in messages:
+                    text = ''
+                    if self.start_time <= message.date <= self.end_time:
+                        print(message)
+                        if message.message is not None and not message.message == '':
+                            text = message.message
+                            if message.reply_to_msg_id is not None and message.reply_to_msg_id > 0:
+                                for message1 in messages:
+                                    if message1.id == message.reply_to_msg_id:
+                                        reply_msg = message1.message
+                                        break
+                                text = text + '\n/////Reply Message////\n' + reply_msg
+                        if message.media is not None:
+                            if 'MessageMediaDocument' not in str(type(message.media)) and 'MessageMediaPhoto' not in str(type(message.media)):
+                                continue
+                            if 'MessageMediaDocument' in str(type(message.media)):
+                                if message.media.document.mime_type not in ['image/jpeg', 'image/png', 'image/bmp', 'image/gif']:
+                                    continue
+                            download_path = await client.download_media(
+                                message.media, MEDIA_DIR
+                            )
+                            try:
+                                text = text + '\n///////Image//////\n' + tess.image_to_string(Image.open(download_path))
+                            except Exception as e:
+                                self.show_message_box("Error", "No Tesseract")
+                        row = [message.date.strftime("%Y-%m-%d %H:%M:%S"), text]
+                        writer.writerow(row)
+                offset_id = messages[len(messages) - 1].id
+        return
+
+
 class TelegramWidget(QWidget):
     def __init__(self, parent=None):
         super(TelegramWidget, self).__init__(parent)
@@ -122,7 +193,7 @@ class TelegramWidget(QWidget):
         self.category_id = {}
         self.entity_id = None
         self.chat_selected = False
-
+        self.spinner = WaitingSpinner(self)
         self.extract_btn = self.findChild(QPushButton, 'extract_btn')
         self.start_time_widget = self.findChild(QDateTimeEdit, 'start_time_widget')
         self.start_time_widget.setDateTime(datetime.now())
@@ -156,15 +227,14 @@ class TelegramWidget(QWidget):
             self.show_message_box("Warning", "Select a chat")
             return
         else:
-            with client:
-                client.loop.run_until_complete(self.get_messages(self.entity_id, start_time, end_time))
+            self.get_messages(self.entity_id, start_time, end_time)
 
     def show_message_box(self, title, message):
         msg = QMessageBox()
         msg.setWindowIcon(QtGui.QIcon(GUI_DIR + '/TelegramFxBacktest.png'))
-        msg.setBaseSize(QtCore.QSize(300, 130))
+        msg.setBaseSize(QSize(300, 130))
         msg.setWindowTitle(title)
-        msg.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        msg.setTextInteractionFlags(Qt.TextSelectableByMouse)
         msg.setText(message)
         retval = msg.exec_()
 
@@ -188,64 +258,78 @@ class TelegramWidget(QWidget):
             print(each_chat)
             self.chat_list.append(each_chat)
 
-    async def get_messages(self, entity_id, start_time, end_time):
-        entity = await client.get_entity(entity_id)
-        offset_id = 0
-        limit = 100
-        all_messages = []
-        total_messages = 0
-        total_count_limit = 0
-        sn = 0
-        code = ''.join(random.sample((string.ascii_uppercase+string.digits), 6))
-        file_path = CSV_DIR + '/' + code + '.csv'
-        with open(file_path, 'w', newline='', encoding="utf-8") as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(["Date", "Message"])
-            while True:
-                # print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
-                history = await client(GetHistoryRequest(
-                    peer=entity,
-                    offset_id=offset_id,
-                    offset_date=None,
-                    add_offset=0,
-                    limit=limit,
-                    max_id=0,
-                    min_id=0,
-                    hash=0
-                ))
-                if not history.messages:
-                    break
-                messages = history.messages
-                for message in messages:
-                    text = ''
-                    if start_time <= message.date <= end_time:
-                        print(message)
-                        if message.message is not None and not message.message == '':
-                            text = message.message
-                            if message.reply_to_msg_id is not None and message.reply_to_msg_id > 0:
-                                for message1 in messages:
-                                    if message1.id == message.reply_to_msg_id:
-                                        reply_msg = message1.message
-                                        break
-                                text = text + '\n/////Reply Message////\n' + reply_msg
-                        if message.media is not None:
-                            if 'MessageMediaDocument' not in str(type(message.media)) and 'MessageMediaPhoto' not in str(type(message.media)):
-                                continue
-                            if 'MessageMediaDocument' in str(type(message.media)):
-                                if message.media.document.mime_type not in ['image/jpeg', 'image/png', 'image/bmp', 'image/gif']:
-                                    continue
-                            download_path = await client.download_media(
-                                message.media, MEDIA_DIR
-                            )
-                            try:
-                                text = text + '\n///////Image//////\n' + tess.image_to_string(Image.open(download_path))
-                            except Exception as e:
-                                self.show_message_box("Error", "No Tesseract")
-                        row = [message.date.strftime("%Y-%m-%d %H:%M:%S"), text]
-                        writer.writerow(row)
-                offset_id = messages[len(messages) - 1].id
-        self.show_message_box("Success", "Code of the backtest : "+code)
-        return
+    def get_messages(self, entity_id, start_time, end_time):
+        self.spinner.start()
+        runnable = RequestRunnable(entity_id, start_time, end_time, self)
+        QThreadPool.globalInstance().start(runnable)
+        # entity = await client.get_entity(entity_id)
+        # offset_id = 0
+        # limit = 100
+        # all_messages = []
+        # total_messages = 0
+        # total_count_limit = 0
+        # sn = 0
+        # code = ''.join(random.sample((string.ascii_uppercase + string.digits), 6))
+        # file_path = CSV_DIR + '/' + code + '.csv'
+        # with open(file_path, 'w', newline='', encoding="utf-8") as csv_file:
+        #     writer = csv.writer(csv_file)
+        #     writer.writerow(["Date", "Message"])
+        #     while True:
+        #         # print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
+        #         history = await client(GetHistoryRequest(
+        #             peer=entity,
+        #             offset_id=offset_id,
+        #             offset_date=None,
+        #             add_offset=0,
+        #             limit=limit,
+        #             max_id=0,
+        #             min_id=0,
+        #             hash=0
+        #         ))
+        #         if not history.messages:
+        #             break
+        #         messages = history.messages
+        #         for message in messages:
+        #             text = ''
+        #             if start_time <= message.date <= end_time:
+        #                 print(message)
+        #                 if message.message is not None and not message.message == '':
+        #                     text = message.message
+        #                     if message.reply_to_msg_id is not None and message.reply_to_msg_id > 0:
+        #                         for message1 in messages:
+        #                             if message1.id == message.reply_to_msg_id:
+        #                                 reply_msg = message1.message
+        #                                 break
+        #                         text = text + '\n/////Reply Message////\n' + reply_msg
+        #                 if message.media is not None:
+        #                     if 'MessageMediaDocument' not in str(
+        #                             type(message.media)) and 'MessageMediaPhoto' not in str(type(message.media)):
+        #                         continue
+        #                     if 'MessageMediaDocument' in str(type(message.media)):
+        #                         if message.media.document.mime_type not in ['image/jpeg', 'image/png', 'image/bmp',
+        #                                                                     'image/gif']:
+        #                             continue
+        #                     download_path = await client.download_media(
+        #                         message.media, MEDIA_DIR
+        #                     )
+        #                     try:
+        #                         text = text + '\n///////Image//////\n' + tess.image_to_string(Image.open(download_path))
+        #                     except Exception as e:
+        #                         self.show_message_box("Error", "No Tesseract")
+        #                 row = [message.date.strftime("%Y-%m-%d %H:%M:%S"), text]
+        #                 writer.writerow(row)
+        #         offset_id = messages[len(messages) - 1].id
+        # self.spinner.stop()
+        # self.show_message_box("Success", "Code of the backtest : " + code)
+        # return
+
+
+    @pyqtSlot(str)
+    def setData(self, data):
+        print(data)
+        self.spinner.stop()
+        self.show_message_box("Success", "Code of the backtest : " + data)
+        self.adjustSize()
 
 
 if __name__ == '__main__':

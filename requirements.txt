@@ -3,3 +3,4 @@ PyQT5
 pillow
 pytesseract
 pyinstaller
+pyqtspinner
