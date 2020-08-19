@@ -109,8 +109,9 @@ class LoginWidget(QWidget):
 
 
 class RequestRunnable(QRunnable):
-    def __init__(self, entity_id, start_time, end_time, widget):
+    def __init__(self, chat_name, entity_id, start_time, end_time, widget):
         QRunnable.__init__(self)
+        self.chat_name = chat_name
         self.entity_id = entity_id
         self.start_time = start_time
         self.end_time = end_time
@@ -136,6 +137,7 @@ class RequestRunnable(QRunnable):
         file_path = CSV_DIR + '/' + self.code + '.csv'
         with open(file_path, 'w', newline='', encoding="utf-8") as csv_file:
             writer = csv.writer(csv_file)
+            writer.writerow(["ChatName", self.chat_name])
             writer.writerow(["Date", "Message"])
             while True:
                 # print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
@@ -192,6 +194,7 @@ class TelegramWidget(QWidget):
         self.chat_id = {}
         self.category_id = {}
         self.entity_id = None
+        self.chat_name = None
         self.chat_selected = False
         self.spinner = WaitingSpinner(self)
         self.extract_btn = self.findChild(QPushButton, 'extract_btn')
@@ -211,8 +214,8 @@ class TelegramWidget(QWidget):
     def list_view_clicked(self):
         item = self.chat_list_widget.currentItem()
         self.chat_selected = True
-        chat_name = str(item.text())
-        self.entity_id = self.chat_id[chat_name]
+        self.chat_name = str(item.text())
+        self.entity_id = self.chat_id[self.chat_name]
 
     def add_chat_list(self, chat_list):
         i = 0
@@ -227,7 +230,7 @@ class TelegramWidget(QWidget):
             self.show_message_box("Warning", "Select a chat")
             return
         else:
-            self.get_messages(self.entity_id, start_time, end_time)
+            self.get_messages(self.chat_name, self.entity_id, start_time, end_time)
 
     def show_message_box(self, title, message):
         msg = QMessageBox()
@@ -258,9 +261,10 @@ class TelegramWidget(QWidget):
             print(each_chat)
             self.chat_list.append(each_chat)
 
-    def get_messages(self, entity_id, start_time, end_time):
+    def get_messages(self, chat_name, entity_id, start_time, end_time):
+        self.extract_btn.setEnabled(False)
         self.spinner.start()
-        runnable = RequestRunnable(entity_id, start_time, end_time, self)
+        runnable = RequestRunnable(chat_name, entity_id, start_time, end_time, self)
         QThreadPool.globalInstance().start(runnable)
         # entity = await client.get_entity(entity_id)
         # offset_id = 0
@@ -330,6 +334,7 @@ class TelegramWidget(QWidget):
         self.spinner.stop()
         self.show_message_box("Success", "Code of the backtest : " + data)
         self.adjustSize()
+        self.extract_btn.setEnabled(True)
 
 
 if __name__ == '__main__':
