@@ -10,7 +10,7 @@ try:
 except ImportError:
     import Image
 import pytesseract as tess
-from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedError, FloodWaitError
+from telethon.errors import SessionPasswordNeededError, PhoneNumberUnoccupiedError, FloodWaitError, PasswordHashInvalidError, PasswordEmptyError
 from datetime import date, datetime
 
 from PyQt5.QtWidgets import *
@@ -83,15 +83,27 @@ class LoginWidget(QWidget):
             except FloodWaitError:
                 self.show_message_box("Warning", "too much request")
                 return
-            code, ok = QInputDialog.getText(self, "Authorize", "", QLineEdit.Normal)
+            code, ok = QInputDialog.getText(self, "Code", "", QLineEdit.Normal)
             if ok:
                 if code is None or code == '':
                     return
                 try:
                     me = client.sign_in(phone_number, code)
                 except SessionPasswordNeededError:
-                    self.show_message_box("Warning", "Need Password")
-                    return
+                    try:
+                        password, ok = QInputDialog.getText(self, "Password", "", QLineEdit.Password)
+                        if password == '':
+                            password = 'a'
+                        me = client.sign_in(password=password)
+                    except PasswordHashInvalidError:
+                        self.show_message_box("Warning", "Invalid Password")
+                        return
+                    except PasswordHashInvalidError:
+                        self.show_message_box("Warning", "Invalid Password")
+                        return
+                    except PasswordEmptyError:
+                        self.show_message_box("Warning", "Empty Password")
+                        return
                 except PhoneNumberUnoccupiedError:
                     self.show_message_box("Warning", "Sign Up")
                     return
